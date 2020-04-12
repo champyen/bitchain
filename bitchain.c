@@ -5,7 +5,7 @@
 #ifdef BC_DEBUG
 #define BC_MSG printf
 #else
-#define BC_MSG
+#define BC_MSG(...)
 #endif
 
 bc_context *bcw_open(char *fn)
@@ -23,6 +23,7 @@ void bcw_close(bc_context *ctx)
         // pending
         fwrite(ctx->buf, ctx->buf_pos*sizeof(BC_UNIT), 1, ctx->fp);
         fclose(ctx->fp);
+        free(ctx->buf);
         free(ctx);
     }
 }
@@ -81,6 +82,7 @@ void bcr_close(bc_context *ctx)
 {
     if(ctx){
         fclose(ctx->fp);
+        free(ctx->buf);
         free(ctx);
     }
 }
@@ -108,8 +110,8 @@ uint64_t bcr_readbits(bc_context *ctx, uint64_t bits, uint64_t *err)
 
     while( (bits + ctx->bit_pos) >= BC_BLEN){
         int nbit = (BC_BLEN - ctx->bit_pos);
-        BC_MSG("B:%lX %lX %ld %d %lX\n", value, ctx->data, bits, ctx->bit_pos, (ctx->data & ((1UL << nbit) - 1)));
-        uint64_t mask = (nbit == 64) ? ~0UL : ((1UL << nbit) - 1);
+        BC_MSG("B:%lX %lX %ld %d %lX\n", value, ctx->data, bits, ctx->bit_pos, (ctx->data & ((UINT64_C(1) << nbit) - 1)));
+        uint64_t mask = (nbit == 64) ? ~0UL : ((UINT64_C(1) << nbit) - 1);
         value <<= nbit;
         value |= (ctx->data & mask);
         ctx->buf_pos++;
@@ -128,7 +130,7 @@ uint64_t bcr_readbits(bc_context *ctx, uint64_t bits, uint64_t *err)
     }
     if(bits){
         value <<= bits;
-        value |= (ctx->data >> (BC_BLEN - bits - ctx->bit_pos)) & ((1UL << bits) - 1);
+        value |= (ctx->data >> (BC_BLEN - bits - ctx->bit_pos)) & ((UINT64_C(1) << bits) - 1);
         ctx->bit_pos += bits;
     }
     return value;
@@ -146,7 +148,7 @@ uint64_t bcr_getbits(bc_context *ctx, uint64_t bits, uint64_t *err)
 
     while( bits + bit_pos >= BC_BLEN){
         int nbit = (BC_BLEN - bit_pos);
-        uint64_t mask = (nbit == 64) ? ~0UL : ((1UL << nbit) - 1);
+        uint64_t mask = (nbit == 64) ? ~0UL : ((UINT64_C(1) << nbit) - 1);
         value <<= nbit;
         value |= (data & mask);
         buf_pos++;
@@ -165,7 +167,7 @@ uint64_t bcr_getbits(bc_context *ctx, uint64_t bits, uint64_t *err)
     }
     if(bits){
         value <<= bits;
-        value |= (data >> (BC_BLEN - bits - bit_pos)) & ((1UL << bits) - 1);
+        value |= (data >> (BC_BLEN - bits - bit_pos)) & ((UINT64_C(1) << bits) - 1);
     }
 
     if(offset != ftell(ctx->fp))
@@ -227,7 +229,7 @@ int main(int ac, char **av)
         bc_context* ctx = bcw_open("test.bin");
         for(int i = 0; i < num_items; i++){
             bits[i] = (rand()%64) + 1;
-            uint64_t mask = (bits[i] == 64) ? ~0UL : ((1UL << bits[i]) - 1);
+            uint64_t mask = (bits[i] == 64) ? ~0UL : ((UINT64_C(1) << bits[i]) - 1);
             values[i] = ((uint64_t)rand()*rand()) & mask;
             bcw_write(ctx, bits[i], values[i]);
         }
