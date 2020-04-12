@@ -3,9 +3,12 @@ library for read / write bitstream data
 
 # compilation
 default BC_UNIT is uint64_t,
-if you want to use different unit (uint8_t for example)
-add '-DBC_UNIT=uint8_t' in your compilation clags
+if you want to use different unit (uint8_t for example), just add '-DBC_UNIT=uint8_t' in your compilation clags
 
+### Please notice: bitstreams writing by differnt BC_UINT are imcompatible! (UNIT is used for concatenatation and file read/write)
+
+
+# Bitchain API
 ## Bitstream writing steps
 1. create context by 'bcw_open'
 ```
