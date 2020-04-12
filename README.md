@@ -14,7 +14,7 @@ if you want to use different unit (uint8_t for example), just add '-DBC_UNIT=uin
 ```
     bc_context *ctx = bcw_open("test.bin");
 ```
-2. write 1~63 bits you want to write by 'bcw_write'
+2. write 1~64 bits you want to write by 'bcw_write'
 ```
     bcw_write(ctx, bits, value);
 ```
@@ -31,21 +31,25 @@ if you want to use different unit (uint8_t for example), just add '-DBC_UNIT=uin
 ```
     bc_context *ctx = bcr_open("test.bin");
 ```
-2. read 1~63 bits you want to read by 'bcr_read', return value will be negative for abnormal case
+2. read 1~64 bits you want to read by 'bcr_read', return value will be negative for abnormal case.
+   Please provides an uint64_t to get error code.
 ```
-    int64_t value = bcr_readbits(ctx, bits);
+    int64_t value = bcr_readbits(ctx, bits, &err);
 ```
 3. get value without change current context steps by 'bcr_getbits', this is useful for VLC decoding
+   Please provides an uint64_t pointer to get error code.
 ```
-    int64_t value = bcr_readbits(ctx, bits);
+    int64_t value = bcr_getbits(ctx, bits, &err);
 ```
 4. skip bits without get the value, moving the context pointer forward by 'bcr_skipbits'
+   Please provides an uint64_t pointer to get error code.
 ```
-    bcr_skipbits(ctx, bits);
+    bcr_skipbits(ctx, bits, &err);
 ```
 5. if you want to have alignment write, next reading will be aligned to BC_UNIT
+   Please provides an uint64_t pointer to get error code.
 ```
-    bcr_align(ctx);
+    bcr_align(ctx, &err);
 ```
 6. close context by 'bcr_close'
 ```

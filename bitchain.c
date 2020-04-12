@@ -110,8 +110,9 @@ uint64_t bcr_readbits(bc_context *ctx, uint64_t bits, uint64_t *err)
     while( (bits + ctx->bit_pos) >= BC_BLEN){
         int nbit = (BC_BLEN - ctx->bit_pos);
         BC_MSG("B:%lX %lX %ld %d %lX\n", value, ctx->data, bits, ctx->bit_pos, (ctx->data & ((1UL << nbit) - 1)));
+        uint64_t mask = (nbit == 64) ? ~0UL : ((1UL << nbit) - 1);
         value <<= nbit;
-        value |= (ctx->data & ((1UL << nbit) - 1));
+        value |= (ctx->data & mask);
         ctx->buf_pos++;
         if(ctx->buf_pos == ctx->buf_fill){
             if(_bcr_fill(ctx)){
@@ -146,8 +147,9 @@ uint64_t bcr_getbits(bc_context *ctx, uint64_t bits, uint64_t *err)
 
     while( bits + bit_pos >= BC_BLEN){
         int nbit = (BC_BLEN - bit_pos);
+        uint64_t mask = (nbit == 64) ? ~0UL : ((1UL << nbit) - 1);
         value <<= nbit;
-        value |= (data & ((1UL << nbit) - 1));
+        value |= (data & mask);
         buf_pos++;
         if(buf_pos >= ctx->buf_fill){
             BC_UNIT tmp;
@@ -226,7 +228,8 @@ int main(int ac, char **av)
         bc_context* ctx = bcw_open("test.bin");
         for(int i = 0; i < num_items; i++){
             bits[i] = (rand()%64) + 1;
-            values[i] = rand() & ((1 << bits[i]) - 1);
+            uint64_t mask = (bits[i] == 64) ? ~0UL : ((1UL << bits[i]) - 1);
+            values[i] = ((uint64_t)rand()*rand()) & mask;
             bcw_write(ctx, bits[i], values[i]);
         }
         bcw_align(ctx);
