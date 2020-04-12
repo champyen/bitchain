@@ -9,9 +9,7 @@
 extern "C" {
 #endif
 
-#if 0
-#define BC_UNIT         uint8_t
-#else
+#ifndef BC_UNIT
 #define BC_UNIT         uint64_t
 #endif
 
