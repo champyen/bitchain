@@ -12,7 +12,7 @@ bc_context *bcw_open(char *fn)
 {
     bc_context *ctx = (bc_context*)calloc(1, sizeof(bc_context));
     ctx->fp = fopen(fn, "wb");
-    ctx->buf = (BC_UNIT*)calloc(1, BC_BUF_NBYTES);
+    ctx->buf = (BC_UNIT*)malloc(BC_BUF_NBYTES);
     return ctx;
 }
 
@@ -62,7 +62,6 @@ int _bcr_fill(bc_context *ctx)
     if(ctx->end == 0){
         ctx->buf_fill = fread(ctx->buf, sizeof(BC_UNIT), BC_BUF_NELEM, ctx->fp);
         ctx->end = ctx->buf_fill == BC_BUF_NELEM ? 0 : 1;
-        //printf("%s: %d\n", __func__, ctx->end);
         return 1;
     }
     return 0;
