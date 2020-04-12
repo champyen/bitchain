@@ -1,5 +1,13 @@
 #include "bitchain.h"
 
+//#define BC_DEBUG
+
+#ifdef BC_DEBUG
+#define BC_MSG printf
+#else
+#define BC_MSG
+#endif
+
 bc_context *bcw_open(char *fn)
 {
     bc_context *ctx = (bc_context*)calloc(1, sizeof(bc_context));
@@ -98,8 +106,9 @@ int64_t bcr_readbits(bc_context *ctx, uint64_t bits)
 
     while( (bits + ctx->bit_pos) >= BC_BLEN){
         int nbit = (BC_BLEN - ctx->bit_pos);
+        BC_MSG("B:%lX %lX %ld %d %lX\n", value, ctx->data, bits, ctx->bit_pos, (ctx->data & ((1UL << nbit) - 1)));
         value <<= nbit;
-        value |= (ctx->data & ((1 << nbit) - 1));
+        value |= (ctx->data & ((1UL << nbit) - 1));
         ctx->buf_pos++;
         if(ctx->buf_pos == ctx->buf_fill){
             if(_bcr_fill(ctx))
@@ -108,13 +117,13 @@ int64_t bcr_readbits(bc_context *ctx, uint64_t bits)
                 return -1;
         }
         ctx->data = ctx->buf[ctx->buf_pos];
-        bits -= nbit;
-        //printf("%d %d %d\n", bits, ctx->bit_pos, BC_BLEN);
         ctx->bit_pos = 0;
+        bits -= nbit;
+        BC_MSG("E:%lX %lX %ld %d\n", value, ctx->data, bits, ctx->bit_pos);
     }
     if(bits){
         value <<= bits;
-        value |= (ctx->data >> (BC_BLEN - bits - ctx->bit_pos)) & ((1 << bits) - 1);
+        value |= (ctx->data >> (BC_BLEN - bits - ctx->bit_pos)) & ((1UL << bits) - 1);
         ctx->bit_pos += bits;
     }
     return value;
@@ -129,9 +138,9 @@ int64_t bcr_getbits(bc_context *ctx, uint64_t bits)
     BC_UNIT data = ctx->data;
 
     while( bits + bit_pos >= BC_BLEN){
-        int bits = (BC_BLEN - bit_pos);
-        value <<= bits;
-        value |= (data & ((1 << bits) - 1));
+        int nbit = (BC_BLEN - bit_pos);
+        value <<= nbit;
+        value |= (data & ((1UL << nbit) - 1));
         buf_pos++;
         if(buf_pos >= ctx->buf_fill){
             BC_UNIT tmp;
@@ -144,11 +153,14 @@ int64_t bcr_getbits(bc_context *ctx, uint64_t bits)
         bits -= (BC_BLEN - bit_pos);
         bit_pos = 0;
     }
-    value <<= bits;
-    value |= (ctx->data >> (BC_BLEN - bits - bit_pos)) & ((1 << bits) - 1);
+    if(bits){
+        value <<= bits;
+        value |= (data >> (BC_BLEN - bits - bit_pos)) & ((1UL << bits) - 1);
+    }
 
     if(offset != ftell(ctx->fp))
         fseek(ctx->fp, offset - ftell(ctx->fp), SEEK_CUR);
+    return value;
 }
 
 int64_t bcr_skipbits(bc_context *ctx, uint64_t bits)
@@ -169,21 +181,40 @@ int64_t bcr_skipbits(bc_context *ctx, uint64_t bits)
 }
 
 #ifdef BC_TEST
+#include <unistd.h>
 #include <time.h>
 
-#define NUM_TESTS 10
-#define NUM_ITEMS 81920
+#define NUM_TESTS 1
+#define NUM_ITEMS 32
 
 int main(int ac, char **av)
 {
-    uint64_t bits[NUM_ITEMS] = {0};
-    uint64_t values[NUM_ITEMS] = {0};
+
+    int num_tests = NUM_TESTS;
+    int num_items = NUM_ITEMS;
+
+    int opt;
+    while ((opt = getopt(ac, av, "t:i:")) != -1) {
+        switch(opt){
+            case 't':
+                num_tests = atoi(optarg);
+                break;
+            case 'i':
+                num_items = atoi(optarg);
+                break;
+        }
+    }
+
+    printf("loop %d times, each %d r/w times\n", num_tests, num_items);
+
+    uint64_t *bits = (uint64_t*)calloc(sizeof(uint64_t), num_items);
+    uint64_t *values = (uint64_t*)calloc(sizeof(uint64_t), num_items);
     srand(time(NULL));
 
-    for(int j = 0; j < NUM_TESTS; j++){
+    for(int j = 0; j < num_tests; j++){
         bc_context* ctx = bcw_open("test.bin");
-        for(int i = 0; i < NUM_ITEMS; i++){
-            bits[i] = ((rand()%30)+1)*2;
+        for(int i = 0; i < num_items; i++){
+            bits[i] = (rand()%63) + 1;
             values[i] = rand() & ((1 << bits[i]) - 1);
             bcw_write(ctx, bits[i], values[i]);
         }
@@ -191,13 +222,21 @@ int main(int ac, char **av)
         bcw_close(ctx);
 
         ctx = bcr_open("test.bin");
-        for(int i = 0; i < NUM_ITEMS; i++){
+        for(int i = 0; i < num_items; i++){
+        #if 1
             int64_t value = bcr_readbits(ctx, bits[i]);
+        #else
+            int64_t value = bcr_getbits(ctx, bits[i]);
+            bcr_skipbits(ctx, bits[i]);
+        #endif
             if(value != values[i])
-                printf("%d: bits:%lu %X %X\n", i, bits[i], value, values[i]);
+                printf("%d: bits:%lu %lX %lX\n", i, bits[i], value, values[i]);
         }
         bcr_close(ctx);
     }
+
+    free(bits);
+    free(values);
     return 0;
 }
 #endif

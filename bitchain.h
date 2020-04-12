@@ -5,10 +5,14 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if 0
 #define BC_UNIT         uint8_t
 #else
-#define BC_UNIT         uint16_t
+#define BC_UNIT         uint64_t
 #endif
 
 #define BC_BLEN         (sizeof(BC_UNIT)*8)
@@ -40,4 +44,8 @@ int64_t bcr_align(bc_context *);
 int64_t bcr_getbits(bc_context *, uint64_t);
 int64_t bcr_skipbits(bc_context *, uint64_t);
 
+#ifdef __cplusplus
+}
 #endif
+
+#endif // _BITCHAIN_H_
