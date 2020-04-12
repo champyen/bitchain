@@ -17,6 +17,12 @@ extern "C" {
 #define BC_BUF_NBYTES   8192
 #define BC_BUF_NELEM    (BC_BUF_NBYTES/sizeof(BC_UNIT))
 
+typedef enum
+{
+    BC_OK = 0,
+    BC_FILE_END,
+} bc_retcode;
+
 typedef struct
 {
     FILE *fp;
@@ -37,10 +43,10 @@ void bcw_align(bc_context *);
 
 bc_context *bcr_open(char *);
 void bcr_close(bc_context *);
-int64_t bcr_readbits(bc_context *, uint64_t);
-int64_t bcr_align(bc_context *);
-int64_t bcr_getbits(bc_context *, uint64_t);
-int64_t bcr_skipbits(bc_context *, uint64_t);
+uint64_t bcr_readbits(bc_context *, uint64_t, uint64_t *);
+void bcr_align(bc_context *, uint64_t *);
+uint64_t bcr_getbits(bc_context *, uint64_t, uint64_t *);
+void bcr_skipbits(bc_context *, uint64_t, uint64_t *);
 
 #ifdef __cplusplus
 }

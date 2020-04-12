@@ -86,23 +86,26 @@ void bcr_close(bc_context *ctx)
     }
 }
 
-int64_t bcr_align(bc_context *ctx)
+void bcr_align(bc_context *ctx, uint64_t *err)
 {
+    *err = BC_OK;
     ctx->buf_pos++;
     if(ctx->buf_pos == ctx->buf_fill){
         if(_bcr_fill(ctx))
             ctx->buf_pos = 0;
-        else
-            return -1;
+        else{
+            *err = BC_FILE_END;
+            return;
+        }
     }
     ctx->data = ctx->buf[ctx->buf_pos];
     ctx->bit_pos = 0;
-    return 0;
 }
 
-int64_t bcr_readbits(bc_context *ctx, uint64_t bits)
+uint64_t bcr_readbits(bc_context *ctx, uint64_t bits, uint64_t *err)
 {
-    int64_t value = 0;
+    uint64_t value = 0;
+    *err = BC_OK;
 
     while( (bits + ctx->bit_pos) >= BC_BLEN){
         int nbit = (BC_BLEN - ctx->bit_pos);
@@ -111,10 +114,12 @@ int64_t bcr_readbits(bc_context *ctx, uint64_t bits)
         value |= (ctx->data & ((1UL << nbit) - 1));
         ctx->buf_pos++;
         if(ctx->buf_pos == ctx->buf_fill){
-            if(_bcr_fill(ctx))
+            if(_bcr_fill(ctx)){
                 ctx->buf_pos = 0;
-            else
-                return -1;
+            }else{
+                *err = BC_FILE_END;
+                return 0;
+            }
         }
         ctx->data = ctx->buf[ctx->buf_pos];
         ctx->bit_pos = 0;
@@ -129,9 +134,11 @@ int64_t bcr_readbits(bc_context *ctx, uint64_t bits)
     return value;
 }
 
-int64_t bcr_getbits(bc_context *ctx, uint64_t bits)
+uint64_t bcr_getbits(bc_context *ctx, uint64_t bits, uint64_t *err)
 {
-    int64_t value = 0;
+    uint64_t value = 0;
+    *err = BC_OK;
+
     long offset = ftell(ctx->fp);
     int buf_pos = ctx->buf_pos;
     int bit_pos = ctx->bit_pos;
@@ -144,8 +151,10 @@ int64_t bcr_getbits(bc_context *ctx, uint64_t bits)
         buf_pos++;
         if(buf_pos >= ctx->buf_fill){
             BC_UNIT tmp;
-            if(fread(&tmp, sizeof(BC_UNIT), 1, ctx->fp) == 0)
-                return -1;
+            if(fread(&tmp, sizeof(BC_UNIT), 1, ctx->fp) == 0){
+                *err = BC_FILE_END;
+                return 0;
+            }
             data = tmp;
         }else{
             data = ctx->buf[buf_pos];
@@ -163,15 +172,17 @@ int64_t bcr_getbits(bc_context *ctx, uint64_t bits)
     return value;
 }
 
-int64_t bcr_skipbits(bc_context *ctx, uint64_t bits)
+void bcr_skipbits(bc_context *ctx, uint64_t bits, uint64_t *err)
 {
+    *err = BC_OK;
     while( bits + ctx->bit_pos >= BC_BLEN){
         ctx->buf_pos++;
         if(ctx->buf_pos == ctx->buf_fill){
-            if(_bcr_fill(ctx))
+            if(_bcr_fill(ctx)){
                 ctx->buf_pos = 0;
-            else
-                return -1;
+            }else{
+                *err = BC_FILE_END;
+            }
         }
         bits -= (BC_BLEN - ctx->bit_pos);
         ctx->bit_pos = 0;
@@ -214,7 +225,7 @@ int main(int ac, char **av)
     for(int j = 0; j < num_tests; j++){
         bc_context* ctx = bcw_open("test.bin");
         for(int i = 0; i < num_items; i++){
-            bits[i] = (rand()%63) + 1;
+            bits[i] = (rand()%64) + 1;
             values[i] = rand() & ((1 << bits[i]) - 1);
             bcw_write(ctx, bits[i], values[i]);
         }
@@ -223,12 +234,19 @@ int main(int ac, char **av)
 
         ctx = bcr_open("test.bin");
         for(int i = 0; i < num_items; i++){
+            uint64_t err;
+
         #if 1
-            int64_t value = bcr_readbits(ctx, bits[i]);
+            int64_t value = bcr_readbits(ctx, bits[i], &err);
         #else
-            int64_t value = bcr_getbits(ctx, bits[i]);
-            bcr_skipbits(ctx, bits[i]);
+            int64_t value = bcr_getbits(ctx, bits[i], &err);
+            bcr_skipbits(ctx, bits[i], &err);
         #endif
+
+            if(err != BC_OK){
+                printf("abnormal file end\n");
+            }
+
             if(value != values[i])
                 printf("%d: bits:%lu %lX %lX\n", i, bits[i], value, values[i]);
         }
