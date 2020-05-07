@@ -21,6 +21,7 @@ void bcw_close(bc_context *ctx)
     if(ctx){
         // flush buffer
         // pending
+        bcw_align(ctx);
         fwrite(ctx->buf, ctx->buf_pos*sizeof(BC_UNIT), 1, ctx->fp);
         fclose(ctx->fp);
         free(ctx->buf);
@@ -233,7 +234,6 @@ int main(int ac, char **av)
             values[i] = ((uint64_t)rand()*rand()) & mask;
             bcw_write(ctx, bits[i], values[i]);
         }
-        bcw_align(ctx);
         bcw_close(ctx);
 
         ctx = bcr_open("test.bin");

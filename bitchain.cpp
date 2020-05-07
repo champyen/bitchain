@@ -24,8 +24,10 @@ Bitchain::Bitchain(string fn, bool reader)
 
 Bitchain::~Bitchain()
 {
-    if(!isReader)
+    if(!isReader){
+    	write_align();
         fwrite(buf, buf_pos*sizeof(BC_UNIT), 1, fp);
+    }
     fclose(fp);
     free(buf);
 }
@@ -227,7 +229,6 @@ int main(int ac, char **av)
                 values[i] = ((uint64_t)rand()*rand()) & mask;
                 ctx.write(values[i], bits[i]);
             }
-            ctx.write_align();
         }
 
         {
